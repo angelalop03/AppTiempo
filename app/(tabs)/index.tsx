@@ -1,98 +1,196 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState } from "react";
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import * as Location from "expo-location";
+import { router } from "expo-router";
+
+import { Ionicons } from "@expo/vector-icons";
+import municipios from "../../data/municipios.json";
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [busqueda, setBusqueda] = useState("");
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const municipiosOrdenados = [...municipios].sort((a, b) =>
+    a.Población.localeCompare(b.Población),
+  );
+
+  const municipiosFiltrados = municipiosOrdenados.filter((municipio) =>
+    municipio.Población.toLowerCase().includes(busqueda.toLowerCase()),
+  );
+
+  async function irUbicacionActual() {
+    const permiso = await Location.requestForegroundPermissionsAsync();
+
+    if (!permiso.granted) {
+      alert("Debes conceder permisos de ubicación");
+      return;
+    }
+
+    const posicion = await Location.getCurrentPositionAsync({});
+
+    router.push({
+      pathname: "/weather",
+      params: {
+        nombre: "Mi ubicación",
+        latitud: posicion.coords.latitude.toString(),
+        longitud: posicion.coords.longitude.toString(),
+      },
+    });
+  }
+
+  function irAlTiempo(municipio: any) {
+    router.push({
+      pathname: "/weather",
+      params: {
+        nombre: municipio.Población,
+        provincia: municipio.Provincia,
+        comunidad: municipio.Comunidad,
+
+        latitud: municipio.Latitud.replace(",", "."),
+        longitud: municipio.Longitud.replace(",", "."),
+
+        poblacion: municipio.Habitantes.toString(),
+        hombres: municipio.Hombres.toString(),
+        mujeres: municipio.Mujeres.toString(),
+      },
+    });
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* Buscador */}
+
+      <View style={styles.buscadorContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Buscar municipio..."
+          value={busqueda}
+          onChangeText={setBusqueda}
+        />
+
+        <TouchableOpacity
+          style={styles.botonUbicacion}
+          onPress={irUbicacionActual}
+        >
+          <Ionicons name="location-sharp" size={28} color="#D9368B" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Lista */}
+
+      <FlatList
+        data={municipiosFiltrados}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => irAlTiempo(item)}
+          >
+            <Text style={styles.nombreMunicipio}>{item.Población}</Text>
+
+            <Text style={styles.flecha}>›</Text>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
   );
 }
+const COLORS = {
+  fondo: "#FFF7D6",
+  crema: "#FFFBEA",
+  rosa: "#F47BB7",
+  rosaFuerte: "#D9368B",
+  verde: "#B7D87A",
+  texto: "#8A2B5F",
+};
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.fondo,
+    paddingTop: 55,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+
+  titulo: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: COLORS.rosaFuerte,
+    textAlign: "center",
+    marginBottom: 18,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+
+  buscadorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+
+  input: {
+    flex: 1,
+    height: 52,
+    backgroundColor: COLORS.crema,
+    borderWidth: 3,
+    borderColor: COLORS.rosaFuerte,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    color: COLORS.texto,
+    fontSize: 16,
+  },
+
+  botonUbicacion: {
+    width: 52,
+    height: 52,
+    marginLeft: 10,
+    backgroundColor: COLORS.rosa,
+    borderWidth: 3,
+    borderColor: COLORS.rosaFuerte,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  icono: {
+    fontSize: 24,
+  },
+
+  item: {
+    backgroundColor: COLORS.crema,
+    borderWidth: 2,
+    borderColor: COLORS.rosa,
+    borderRadius: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  nombreMunicipio: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.texto,
+  },
+
+  flecha: {
+    fontSize: 26,
+    color: COLORS.rosaFuerte,
+    fontWeight: "bold",
+  },
+  filaDato: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginVertical: 6,
   },
 });
